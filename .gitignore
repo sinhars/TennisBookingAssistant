@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.tennis/
+.vscode/
+chrome_driver/
+credentials.json

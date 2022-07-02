@@ -1,0 +1,109 @@
+{
+    "maxSlots": 4,
+    "numSlots": 1,
+    "slotHour": null,
+    "nextHourCutoff": 30,
+    "sleepDuration": {
+        "long": 5,
+        "short": 0.001
+    },
+    "apartmentName": "Bougainvillea-E-501",
+    "web": {
+        "apnaComplexURL": "https://www.apnacomplex.com/facilities/directory",
+        "credentialsFile": "credentials.json",
+        "chromeBinaryPath": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "chromeDriverExe": "chrome_driver/chromedriver.exe",
+        "webDriverDelay": 30
+    },
+    "app": {
+        "multiInstanceManager": {
+            "launchPath": "C:\\Program Files\\BlueStacks_nxt\\HD-MultiInstanceManager.exe",
+            "windowName": "BlueStacks Multi Instance Manager"
+        },
+        "appWindowNames": [
+            "ApnaComplex1",
+            "ApnaComplex2",
+            "ApnaComplex3",
+            "ApnaComplex4"
+        ],
+        "sleepDuration": {
+            "appLoad": 60,
+            "pageLoad": 5,
+            "smallPause": 1
+        },
+        "scrollCount": 7,
+        "scrollLength": 200,
+        "initialSlotHour": 5,
+        "slotDragLength": 152.5,
+        "mousePosition": {
+            "selectInstancesButton": {
+                "x": 35,
+                "y": 165
+            },
+            "startInstancesButton": {
+                "x": 170,
+                "y": 165
+            },
+            "apnaComplexIcon": {
+                "x": 375,
+                "y": 225
+            },
+            "confirmCloseButton": {
+                "x": 400,
+                "y": 290
+            },
+            "managerCloseButton": {
+                "x": 640,
+                "y": 25
+            },
+            "facilitiesButton": {
+                "x": 180,
+                "y": 180
+            },
+            "facilitiesHeader": {
+                "x": 100,
+                "y": 125
+            },
+            "tennisCourt1Button": {
+                "x": 50,
+                "y": 650
+            },
+            "tennisCourt2Button": {
+                "x": 50,
+                "y": 750
+            },
+            "slotBookingButton": {
+                "x": 360,
+                "y": 800
+            },
+            "tomorrowToggle": {
+                "x": 400,
+                "y": 250
+            },
+            "timeSlotDrag": {
+                "x": 200,
+                "y": 430
+            },
+            "timeSlotButton": {
+                "x": 80,
+                "y": 410
+            },
+            "bookNowButton": {
+                "x": 220,
+                "y": 800
+            },
+            "confirmButton": {
+                "x": 280,
+                "y": 480
+            },
+            "bookingBackButton": {
+                "x": 25,
+                "y": 75
+            },
+            "facilitiesBackButton": {
+                "x": 22,
+                "y": 88
+            }
+        }
+    }
+}
