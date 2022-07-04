@@ -6,11 +6,12 @@ from win32gui import GetWindowRect, SetForegroundWindow
 
 
 class AppAssistant:
+
     def __init__(self, config: dict):
         self.config = config["app"]
         self.logger = logging.getLogger("default")
 
-    def getAppWindowByName(self, appTitle: str, bringToFront: bool = True):
+    def getAppInfoByName(self, appTitle: str, bringToFront: bool = True):
         try:
             app = pywinauto.application.Application(backend="uia")
             appConnection = app.connect(title=appTitle)
@@ -19,12 +20,16 @@ class AppAssistant:
                 SetForegroundWindow(appWindow.handle)
         except pywinauto.findwindows.ElementNotFoundError:
             return None
-        return appWindow
+
+        appInfo = dict(appWindow=appWindow, windowRect=GetWindowRect(appWindow.handle))
+        return appInfo
 
     def closeExistingApp(self, appTitle: str):
-        appWindow = self.getAppWindowByName(appTitle=appTitle, bringToFront=False)
-        if appWindow is not None:
-            appWindow.close()
+        appInfo = self.getAppInfoByName(appTitle=appTitle, bringToFront=False)
+        if appInfo is None:
+            return
+        appWindow = appInfo["appWindow"]
+        appWindow.close()
         return
 
     def loadAllApnaComplexApps(self, allBookingArgs: dict) -> None:
@@ -50,36 +55,38 @@ class AppAssistant:
         time.sleep(self.config["sleepDuration"]["appLoad"])
 
         # For each app instance, click the ApnaComplex icon to load
+        allApps = list()
         for idx, bookingArgs in enumerate(allBookingArgs):
-            appWindow = self.getAppWindowByName(
+            appInfo = self.getAppInfoByName(
                 appTitle=self.config["appWindowNames"][idx]
             )
-            appWindow.click_input(coords=self.getCoordinates(element="apnaComplexIcon"))
+            appInfo["appWindow"].click_input(
+                coords=self.getCoordinates(element="apnaComplexIcon")
+            )
+            allApps.append(appInfo)
 
         time.sleep(self.config["sleepDuration"]["appLoad"])
-        return
+        return allApps
 
-    def navigateAllApps(self, allBookingArgs: list) -> list:
-        successList = list()
+    def navigateAllApps(self, allBookingArgs: list, allApps: list) -> list:
+        successApps = list()
         for idx, bookingArgs in enumerate(allBookingArgs):
-            isSuccess = self.navigateToBooking(bookingIdx=idx, bookingArgs=bookingArgs)
-            successList.append(isSuccess)
-        return successList
-
-    def navigateToBooking(self, bookingIdx: int, bookingArgs: dict) -> bool:
-        appWindow = self.getAppWindowByName(
-            appTitle=self.config["appWindowNames"][bookingIdx]
-        )
-        if appWindow is None:
-            self.logger.error(
-                f"Valid app window not found for Booking # {bookingIdx + 1}"
+            isSuccess = self.navigateToBooking(
+                bookingArgs=bookingArgs, appInfo=allApps[idx]
             )
+            successApps.append(allApps[idx])
+        return successApps
+
+    def navigateToBooking(self, bookingArgs: dict, appInfo: dict) -> bool:
+        appWindow = appInfo["appWindow"]
+        windowRect = appInfo["windowRect"]
+        if appWindow is None:
+            self.logger.error(f"Valid app window not found for {bookingArgs}")
             return False
+        self.logger.info(f"Starting navigation to booking page for {bookingArgs}.")
 
-        self.logger.info(
-            f"Starting navigation to booking page for Booking # {bookingIdx + 1}."
-        )
-
+        # Bring app to foreground
+        SetForegroundWindow(appWindow.handle)
         # Open facilities page
         appWindow.click_input(coords=self.getCoordinates(element="facilitiesButton"))
         time.sleep(self.config["sleepDuration"]["pageLoad"])
@@ -93,7 +100,7 @@ class AppAssistant:
             counter += 1
             pywinauto.mouse.scroll(
                 coords=self.getCoordinates(
-                    element="facilitiesHeader", windowHandle=appWindow.handle
+                    element="facilitiesHeader", windowRect=windowRect
                 ),
                 wheel_dist=-1,
             )
@@ -119,43 +126,45 @@ class AppAssistant:
             dragStart="timeSlotDragStart",
             dragStop="timeSlotDragStop",
             totalDrags=bookingArgs["slotHour"] - self.config["initialSlotHour"],
-            windowHandle=appWindow.handle,
+            windowRect=windowRect,
         )
 
         # Click the slot at the starting position
         appWindow.click_input(coords=self.getCoordinates(element="timeSlotButton"))
         # Click on book now button
         appWindow.click_input(coords=self.getCoordinates(element="bookNowButton"))
-
-        time.sleep(self.config["sleepDuration"]["smallPause"])
+               
         return True
 
-    def confirmAllBookings(self, allBookingArgs: list) -> list:
+    def confirmAllBookings(self, allApps: list) -> list:
+        pywinauto.timings.Timings.fast()
+        pywinauto.timings.Timings.after_click_wait = 0.001
+        pywinauto.timings.Timings.after_setcursorpos_wait = 0.001
+        
         successList = list()
-        for idx, allBookingArg in enumerate(allBookingArgs):
-            isSuccess = self.confirmBooking(bookingIdx=idx)
+        for appInfo in allApps:
+            isSuccess = self.confirmBooking(windowRect=appInfo["windowRect"])
             if isSuccess:
                 successList.append(isSuccess)
         time.sleep(self.config["sleepDuration"]["pageLoad"])
         return successList
 
-    def confirmBooking(self, bookingIdx: int) -> bool:
-        appWindow = self.getAppWindowByName(
-            appTitle=self.config["appWindowNames"][bookingIdx]
-        )
-        if appWindow is None:
-            self.logger.error(
-                f"Valid app window not found for Booking # {bookingIdx + 1}"
+    def confirmBooking(self, windowRect: tuple) -> bool:
+        try:
+            confirmCoords = self.getCoordinates(
+                element="confirmButton", windowRect=windowRect
             )
+            pywinauto.mouse.click(button="left", coords=confirmCoords)
+        except Exception as ex:
             return False
-        appWindow.click_input(coords=(self.getCoordinates(element="confirmButton")))
         return True
 
     def closeAllApnaComplexApps(self) -> None:
         self.logger.info("Closing all app instances and manager window.")
-        managerWindow = self.getAppWindowByName(
+        managerInfo = self.getAppInfoByName(
             appTitle=self.config["multiInstanceManager"]["windowName"]
         )
+        managerWindow = managerInfo["appWindow"]
         if managerWindow is None:
             return
         try:
@@ -182,10 +191,9 @@ class AppAssistant:
 
         return
 
-    def getCoordinates(self, element: str, windowHandle: int = None):
+    def getCoordinates(self, element: str, windowRect: tuple = None):
         windowX, windowY = 0, 0
-        if windowHandle is not None:
-            windowRect = GetWindowRect(windowHandle)
+        if windowRect is not None:
             windowX, windowY = windowRect[0], windowRect[1]
         return (
             windowX + self.config["mousePosition"][element]["x"],
@@ -197,12 +205,12 @@ class AppAssistant:
         totalDrags: int,
         dragStart: str,
         dragStop: str,
-        windowHandle: int,
+        windowRect: tuple,
         sleepDuration: int = 0,
     ):
         dragCounter = 0
-        startCoords = self.getCoordinates(element=dragStart, windowHandle=windowHandle)
-        stopCoords = self.getCoordinates(element=dragStop, windowHandle=windowHandle)
+        startCoords = self.getCoordinates(element=dragStart, windowRect=windowRect)
+        stopCoords = self.getCoordinates(element=dragStop, windowRect=windowRect)
         while dragCounter < totalDrags:
             dragCounter += 1
             pywinauto.mouse.press(button="left", coords=startCoords)

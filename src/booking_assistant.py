@@ -53,7 +53,6 @@ class BookingAssistant:
 
     def makeBookings(self) -> None:
         appAssistant = AppAssistant(config=self.config)
-
         # Get booking arguments based on existing bookings
         allBookingArgs, slotHour, bookingDatetime = self.getAllBookingArgs()
         if allBookingArgs is None:
@@ -64,10 +63,15 @@ class BookingAssistant:
             f"Booking {len(allBookingArgs)} slots for {slotHour}:00 hours."
         )
 
-        appAssistant.loadAllApnaComplexApps(allBookingArgs=allBookingArgs)
-        successList = appAssistant.navigateAllApps(allBookingArgs=allBookingArgs)
+        allApps = appAssistant.loadAllApnaComplexApps(allBookingArgs=allBookingArgs)
+        allApps = appAssistant.navigateAllApps(
+            allBookingArgs=allBookingArgs, allApps=allApps
+        )
+        if not allApps:
+            return
+
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
-        successList = appAssistant.confirmAllBookings(allBookingArgs=allBookingArgs)
+        successList = appAssistant.confirmAllBookings(allApps=allApps)
         appAssistant.closeAllApnaComplexApps()
 
         return
