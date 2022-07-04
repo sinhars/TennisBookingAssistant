@@ -1,16 +1,8 @@
 import time
 import logging
 
-import subprocess
-from win32gui import (
-    FindWindow,
-    GetWindowRect,
-    SetForegroundWindow,
-    IsWindowVisible,
-    EnumWindows,
-    GetWindowText,
-)
-import pyautogui
+import pywinauto
+from win32gui import GetWindowRect, SetForegroundWindow
 
 
 class AppAssistant:
@@ -18,245 +10,203 @@ class AppAssistant:
         self.config = config["app"]
         self.logger = logging.getLogger("default")
 
-    def loadAllApnaComplexApps(self, allBookingArgs: dict) -> list:
+    def getAppWindowByName(self, appTitle: str, bringToFront: bool = True):
+        try:
+            app = pywinauto.application.Application(backend="uia")
+            appConnection = app.connect(title=appTitle)
+            appWindow = appConnection.window(title=appTitle)
+            if bringToFront:
+                SetForegroundWindow(appWindow.handle)
+        except pywinauto.findwindows.ElementNotFoundError:
+            return None
+        return appWindow
+
+    def closeExistingApp(self, appTitle: str):
+        appWindow = self.getAppWindowByName(appTitle=appTitle, bringToFront=False)
+        if appWindow is not None:
+            appWindow.close()
+        return
+
+    def loadAllApnaComplexApps(self, allBookingArgs: dict) -> None:
         self.logger.info("Initializing BlueStacks Multi Instance Manager.")
-        allWindowHandles = dict()
-
-        # Open Multi Instance Manager
-        subprocess.Popen(self.config["multiInstanceManager"]["launchPath"])
-        time.sleep(self.config["sleepDuration"]["smallPause"])
-        windowHandle = FindWindow(
-            None, self.config["multiInstanceManager"]["windowName"]
+        # Close existing Multi Instance Manager and open new window
+        self.closeExistingApp(
+            appTitle=self.config["multiInstanceManager"]["windowName"]
         )
-        allWindowHandles["manager"] = windowHandle
-
-        SetForegroundWindow(windowHandle)
-        windowRectangle = GetWindowRect(windowHandle)
-        # Click Select all instances
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["selectInstancesButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["selectInstancesButton"]["y"],
+        managerApp = pywinauto.application.Application(backend="uia").start(
+            self.config["multiInstanceManager"]["launchPath"]
         )
-        pyautogui.click()
-
-        # Click Start all instances
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["startInstancesButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["startInstancesButton"]["y"],
+        managerWindow = managerApp.window(
+            title=self.config["multiInstanceManager"]["windowName"]
         )
-        pyautogui.click()
+        # Select app instances based on number of bookings
+        for i in range(len(allBookingArgs)):
+            selectCheckbox = managerWindow[f"CheckBox{i + 2}"]
+            if selectCheckbox.get_toggle_state() == 0:
+                selectCheckbox.invoke()
+
+        # Click Start to launch all app instances
+        managerWindow[self.config["inputElementNames"]["startAllButton"]].click_input()
         time.sleep(self.config["sleepDuration"]["appLoad"])
 
-        self.logger.info("Loading ApnaComplex app instances.")
-
-        allWindowHandles["apps"] = list()
+        # For each app instance, click the ApnaComplex icon to load
         for idx, bookingArgs in enumerate(allBookingArgs):
-            windowName = self.config["appWindowNames"][idx]
-            windowHandle = FindWindow(None, windowName)
-            SetForegroundWindow(windowHandle)
-            windowRectangle = GetWindowRect(windowHandle)
-            # Click ApnaComplex app icon
-            pyautogui.moveTo(
-                windowRectangle[0]
-                + self.config["mousePosition"]["apnaComplexIcon"]["x"],
-                windowRectangle[1]
-                + self.config["mousePosition"]["apnaComplexIcon"]["y"],
+            appWindow = self.getAppWindowByName(
+                appTitle=self.config["appWindowNames"][idx]
             )
-            pyautogui.click()
-            allWindowHandles["apps"].append(windowHandle)
+            appWindow.click_input(coords=self.getCoordinates(element="apnaComplexIcon"))
 
         time.sleep(self.config["sleepDuration"]["appLoad"])
-        return allWindowHandles
+        return
 
-    def navigateAllApps(self, appWindowHandles: list, allBookingArgs: list) -> list:
+    def navigateAllApps(self, allBookingArgs: list) -> list:
         successList = list()
-        for idx, appWindowHandle in enumerate(appWindowHandles):
-            isSuccess = self.navigateToBooking(
-                windowHandle=appWindowHandle, bookingArgs=allBookingArgs[idx]
-            )
-            if isSuccess:
-                successList.append(appWindowHandle)
+        for idx, bookingArgs in enumerate(allBookingArgs):
+            isSuccess = self.navigateToBooking(bookingIdx=idx, bookingArgs=bookingArgs)
+            successList.append(isSuccess)
         return successList
 
-    def navigateToBooking(self, windowHandle: int, bookingArgs: dict) -> bool:
-        if not IsWindowVisible(windowHandle):
+    def navigateToBooking(self, bookingIdx: int, bookingArgs: dict) -> bool:
+        appWindow = self.getAppWindowByName(
+            appTitle=self.config["appWindowNames"][bookingIdx]
+        )
+        if appWindow is None:
             self.logger.error(
-                f"Window handle {windowHandle} not found - unable to navigate"
+                f"Valid app window not found for Booking # {bookingIdx + 1}"
             )
             return False
 
-        SetForegroundWindow(windowHandle)
-        windowRectangle = GetWindowRect(windowHandle)
-
-        self.logger.info(f"Starting navigation to booking page for {windowHandle}.")
+        self.logger.info(
+            f"Starting navigation to booking page for Booking # {bookingIdx + 1}."
+        )
 
         # Open facilities page
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["facilitiesButton"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["facilitiesButton"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=self.getCoordinates(element="facilitiesButton"))
         time.sleep(self.config["sleepDuration"]["pageLoad"])
 
         # Click on page header before scrolling
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["facilitiesHeader"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["facilitiesHeader"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=self.getCoordinates(element="facilitiesHeader"))
 
         # Scroll to the bottom of the facilities page
         counter = 0
-        while counter < self.config["scrollCount"]:
+        while counter < self.config["facilitiesScrollCount"]:
             counter += 1
-            pyautogui.scroll(-self.config["scrollLength"])
+            pywinauto.mouse.scroll(
+                coords=self.getCoordinates(
+                    element="facilitiesHeader", windowHandle=appWindow.handle
+                ),
+                wheel_dist=-1,
+            )
             time.sleep(self.config["sleepDuration"]["smallPause"])
 
         # Click the tennis court facility icon
         courtNum = bookingArgs["courtNum"]
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"][f"tennisCourt{courtNum}Button"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"][f"tennisCourt{courtNum}Button"]["y"],
+        appWindow.click_input(
+            coords=self.getCoordinates(element=f"tennisCourt{courtNum}Button")
         )
-        pyautogui.click()
         time.sleep(self.config["sleepDuration"]["pageLoad"])
 
         # Click slot booking button
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["slotBookingButton"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["slotBookingButton"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=(self.getCoordinates(element="slotBookingButton")))
         time.sleep(self.config["sleepDuration"]["pageLoad"])
-
         # Click tomorrow toggle
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["tomorrowToggle"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["tomorrowToggle"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=(self.getCoordinates(element="tomorrowToggle")))
         time.sleep(self.config["sleepDuration"]["smallPause"])
         time.sleep(self.config["sleepDuration"]["smallPause"])
 
         # Drag  slots to bring the correct slot to starting position
-        dragCounter = 0
-        totalDrags = bookingArgs["slotHour"] - self.config["initialSlotHour"]
-        while dragCounter < totalDrags:
-            dragCounter += 1
-            pyautogui.moveTo(
-                windowRectangle[0] + self.config["mousePosition"]["timeSlotDrag"]["x"],
-                windowRectangle[1] + self.config["mousePosition"]["timeSlotDrag"]["y"],
-            )
-            pyautogui.click()
-            pyautogui.drag(
-                -self.config["slotDragLength"],
-                0,
-                self.config["sleepDuration"]["smallPause"],
-                button="left",
-            )
+        self.dragMouseOnApp(
+            dragStart="timeSlotDragStart",
+            dragStop="timeSlotDragStop",
+            totalDrags=bookingArgs["slotHour"] - self.config["initialSlotHour"],
+            windowHandle=appWindow.handle,
+        )
 
         # Click the slot at the starting position
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["timeSlotButton"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["timeSlotButton"]["y"],
-        )
-        pyautogui.click()
-
+        appWindow.click_input(coords=self.getCoordinates(element="timeSlotButton"))
         # Click on book now button
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["bookNowButton"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["bookNowButton"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=self.getCoordinates(element="bookNowButton"))
+
         time.sleep(self.config["sleepDuration"]["smallPause"])
         return True
 
-    def confirmAllBookings(self, appWindowHandles: list) -> list:
+    def confirmAllBookings(self, allBookingArgs: list) -> list:
         successList = list()
-        for appWindowHandle in appWindowHandles:
-            isSuccess = self.confirmBooking(windowHandle=appWindowHandle)
+        for idx, allBookingArg in enumerate(allBookingArgs):
+            isSuccess = self.confirmBooking(bookingIdx=idx)
             if isSuccess:
-                successList.append(appWindowHandle)        
+                successList.append(isSuccess)
         time.sleep(self.config["sleepDuration"]["pageLoad"])
         return successList
 
-    def confirmBooking(self, windowHandle: int) -> bool:
-        if not IsWindowVisible(windowHandle):
+    def confirmBooking(self, bookingIdx: int) -> bool:
+        appWindow = self.getAppWindowByName(
+            appTitle=self.config["appWindowNames"][bookingIdx]
+        )
+        if appWindow is None:
             self.logger.error(
-                f"Window handle {windowHandle} not found - unable to confirm booking"
+                f"Valid app window not found for Booking # {bookingIdx + 1}"
             )
             return False
-
-        SetForegroundWindow(windowHandle)
-        windowRectangle = GetWindowRect(windowHandle)
-        pyautogui.moveTo(
-            windowRectangle[0] + self.config["mousePosition"]["confirmButton"]["x"],
-            windowRectangle[1] + self.config["mousePosition"]["confirmButton"]["y"],
-        )
-        pyautogui.click()
+        appWindow.click_input(coords=(self.getCoordinates(element="confirmButton")))
         return True
 
-    def minimizeAllWindows(self):
-        self.logger.info("Minimizing all windows")
-        pyautogui.keyDown("winleft")
-        pyautogui.press("d")
-        pyautogui.keyUp("winleft")
-        screenSize = pyautogui.size()
-        pyautogui.moveTo(int(screenSize[0] / 2), int(screenSize[1] / 2))
-        pyautogui.click()
+    def closeAllApnaComplexApps(self) -> None:
+        self.logger.info("Closing all app instances and manager window.")
+        managerWindow = self.getAppWindowByName(
+            appTitle=self.config["multiInstanceManager"]["windowName"]
+        )
+        if managerWindow is None:
+            return
+        try:
+            # Click Stop All to close all app instances
+            managerWindow[
+                self.config["inputElementNames"]["stopAllButton"]
+            ].click_input()
+
+            # Click Close All in the confirmation dialog
+            confirmCloseWindow = managerWindow[
+                self.config["inputElementNames"]["closeConfirmDialog"]
+            ]
+            closeButton = confirmCloseWindow.child_window(
+                title=self.config["inputElementNames"]["closeAllButton"],
+                control_type="Button",
+            )
+            closeButton.click_input()
+        except pywinauto.findbestmatch.MatchError:
+            # No instances running - no apps to close
+            pass
+        self.closeExistingApp(
+            appTitle=self.config["multiInstanceManager"]["windowName"]
+        )
+
         return
 
-    def closeAllApnaComplexApps(self, windowHandle: int) -> bool:
-        if not IsWindowVisible(windowHandle):
-            self.logger.error(
-                f"Manager window handle {windowHandle} not found - unable to close apps."
-            )
-            return False
-        
-        self.logger.info("Shutting down all app instances")
-        
-        SetForegroundWindow(windowHandle)
-        windowRectangle = GetWindowRect(windowHandle)
-        # Click Select all instances
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["selectInstancesButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["selectInstancesButton"]["y"],
+    def getCoordinates(self, element: str, windowHandle: int = None):
+        windowX, windowY = 0, 0
+        if windowHandle is not None:
+            windowRect = GetWindowRect(windowHandle)
+            windowX, windowY = windowRect[0], windowRect[1]
+        return (
+            windowX + self.config["mousePosition"][element]["x"],
+            windowY + self.config["mousePosition"][element]["y"],
         )
-        pyautogui.click()
 
-        # Click Stop all instances
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["startInstancesButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["startInstancesButton"]["y"],
-        )
-        pyautogui.click()
-        
-        # Click Confirm stop all instances
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["confirmCloseButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["confirmCloseButton"]["y"],
-        )
-        pyautogui.click()
-        
-        # Close manager window
-        pyautogui.moveTo(
-            windowRectangle[0]
-            + self.config["mousePosition"]["managerCloseButton"]["x"],
-            windowRectangle[1]
-            + self.config["mousePosition"]["managerCloseButton"]["y"],
-        )
-        pyautogui.click()
-        
+    def dragMouseOnApp(
+        self,
+        totalDrags: int,
+        dragStart: str,
+        dragStop: str,
+        windowHandle: int,
+        sleepDuration: int = 0,
+    ):
+        dragCounter = 0
+        startCoords = self.getCoordinates(element=dragStart, windowHandle=windowHandle)
+        stopCoords = self.getCoordinates(element=dragStop, windowHandle=windowHandle)
+        while dragCounter < totalDrags:
+            dragCounter += 1
+            pywinauto.mouse.press(button="left", coords=startCoords)
+            pywinauto.mouse.release(button="left", coords=stopCoords)
+            if sleepDuration > 0:
+                time.sleep(sleepDuration)
         return

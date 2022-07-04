@@ -26,35 +26,23 @@
             "ApnaComplex3",
             "ApnaComplex4"
         ],
+        "inputElementNames":{
+            "startAllButton": "StartButton0",
+            "stopAllButton": "Stop all",
+            "closeConfirmDialog": "Close instancesDialog2",
+            "closeAllButton": "Close all"
+        },
         "sleepDuration": {
             "appLoad": 60,
             "pageLoad": 5,
             "smallPause": 1
         },
-        "scrollCount": 7,
-        "scrollLength": 200,
+        "facilitiesScrollCount": 10,
         "initialSlotHour": 5,
-        "slotDragLength": 152.5,
         "mousePosition": {
-            "selectInstancesButton": {
-                "x": 35,
-                "y": 165
-            },
-            "startInstancesButton": {
-                "x": 170,
-                "y": 165
-            },
             "apnaComplexIcon": {
-                "x": 375,
-                "y": 225
-            },
-            "confirmCloseButton": {
-                "x": 400,
-                "y": 290
-            },
-            "managerCloseButton": {
-                "x": 640,
-                "y": 25
+                "x": 350,
+                "y": 220
             },
             "facilitiesButton": {
                 "x": 180,
@@ -80,8 +68,12 @@
                 "x": 400,
                 "y": 250
             },
-            "timeSlotDrag": {
+            "timeSlotDragStart": {
                 "x": 200,
+                "y": 430
+            },
+            "timeSlotDragStop": {
+                "x": 57,
                 "y": 430
             },
             "timeSlotButton": {
@@ -95,14 +87,6 @@
             "confirmButton": {
                 "x": 280,
                 "y": 480
-            },
-            "bookingBackButton": {
-                "x": 25,
-                "y": 75
-            },
-            "facilitiesBackButton": {
-                "x": 22,
-                "y": 88
             }
         }
     }

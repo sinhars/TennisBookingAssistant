@@ -54,30 +54,20 @@ class BookingAssistant:
     def makeBookings(self) -> None:
         appAssistant = AppAssistant(config=self.config)
 
-        # Minimize all open windows
-        appAssistant.minimizeAllWindows()
-
         # Get booking arguments based on existing bookings
         allBookingArgs, slotHour, bookingDatetime = self.getAllBookingArgs()
         if allBookingArgs is None:
             return
-        
+
         # Book courts using the app assistant
         self.logger.info(
             f"Booking {len(allBookingArgs)} slots for {slotHour}:00 hours."
         )
-        allWindowHandles = appAssistant.loadAllApnaComplexApps(
-            allBookingArgs=allBookingArgs
-        )
-        navWindowHandles = appAssistant.navigateAllApps(
-            appWindowHandles=allWindowHandles["apps"], allBookingArgs=allBookingArgs
-        )
+
+        appAssistant.loadAllApnaComplexApps(allBookingArgs=allBookingArgs)
+        successList = appAssistant.navigateAllApps(allBookingArgs=allBookingArgs)
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
-        confirmWindowHandles = appAssistant.confirmAllBookings(
-            appWindowHandles=navWindowHandles
-        )
-        success = appAssistant.closeAllApnaComplexApps(
-            windowHandle=allWindowHandles["manager"]
-        )
-        
+        successList = appAssistant.confirmAllBookings(allBookingArgs=allBookingArgs)
+        appAssistant.closeAllApnaComplexApps()
+
         return
