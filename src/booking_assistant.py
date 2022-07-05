@@ -75,3 +75,24 @@ class BookingAssistant:
         appAssistant.closeAllApnaComplexApps()
 
         return
+
+    def onlyConfirm(self) -> None:
+        appAssistant = AppAssistant(config=self.config)
+        webAssistant = WebAssistant(config=self.config)
+        # Get existing booking counts for each court
+        slotHour, bookingDatetime = webAssistant.getBookingTimeSlot(
+            slotHour=self.config["slotHour"],
+            nextHourCutoff=self.config["nextHourCutoff"],
+        )
+        # Fallback for confirming on manually opened windows
+        allApps = [
+            appAssistant.getAppInfoByName(
+                appTitle=f"ApnaComplex{i+1}", bringToFront=True
+            )
+            for i in range(self.config["maxSlots"])
+        ]
+        self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
+        successList = appAssistant.confirmAllBookings(allApps=allApps)
+        appAssistant.closeAllApnaComplexApps()
+        
+        return

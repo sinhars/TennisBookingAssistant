@@ -49,12 +49,14 @@ class AppAssistant:
             selectCheckbox = managerWindow[f"CheckBox{i + 2}"]
             if selectCheckbox.get_toggle_state() == 0:
                 selectCheckbox.invoke()
-
+        time.sleep(self.config["sleepDuration"]["smallPause"])
+        
         # Click Start to launch all app instances
         managerWindow[self.config["inputElementNames"]["startAllButton"]].click_input()
         time.sleep(self.config["sleepDuration"]["appLoad"])
 
         # For each app instance, click the ApnaComplex icon to load
+        self.logger.info("Loading ApnaComplex app in all instances.")
         allApps = list()
         for idx, bookingArgs in enumerate(allBookingArgs):
             appInfo = self.getAppInfoByName(
@@ -140,9 +142,11 @@ class AppAssistant:
         pywinauto.timings.Timings.fast()
         pywinauto.timings.Timings.after_click_wait = 0.001
         pywinauto.timings.Timings.after_setcursorpos_wait = 0.001
-        
+        self.logger.info("Confirming all bookings.")
         successList = list()
         for appInfo in allApps:
+            if appInfo is None:
+                continue
             isSuccess = self.confirmBooking(windowRect=appInfo["windowRect"])
             if isSuccess:
                 successList.append(isSuccess)
