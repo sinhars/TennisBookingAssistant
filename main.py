@@ -2,14 +2,17 @@ import os
 import sys
 import pathlib
 import json
+from datetime import datetime
+
 import logging
 import logging.config
+from typing import Any
 
 sys.path.append(os.path.join(pathlib.Path(__file__).parent, "src"))
 
 from booking_assistant import BookingAssistant
 
-def getCmdLineArg(args: list, arg: str) -> bool:
+def getCmdLineArg(args: list, arg: str) -> Any:
     dateArgs = []
     intArgs = ["slotHour"]
     strArgs = []
@@ -43,6 +46,7 @@ def getCmdLineArg(args: list, arg: str) -> bool:
 
 
 def main():
+    testRun = getCmdLineArg(sys.argv[1:], "testRun")
     onlyConfirm = getCmdLineArg(sys.argv[1:], "onlyConfirm")
     slotHour = getCmdLineArg(sys.argv[1:], "slotHour")
     
@@ -64,7 +68,7 @@ def main():
     if slotHour is not None:
         config["slotHour"] = slotHour
     
-    bookingAssistant = BookingAssistant(config=config)
+    bookingAssistant = BookingAssistant(config=config, testRun=testRun)
     
     if onlyConfirm:
         bookingAssistant.onlyConfirm()

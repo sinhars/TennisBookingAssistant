@@ -1,7 +1,7 @@
 {
     "maxSlots": 4,
     "numSlots": 4,
-    "slotHour": null,
+    "slotHour": 7,
     "nextHourCutoff": 10,
     "sleepDuration": {
         "long": 5,
@@ -16,6 +16,7 @@
         "webDriverDelay": 30
     },
     "app": {
+        "maxRetries": 3,
         "multiInstanceManager": {
             "launchPath": "C:\\Program Files\\BlueStacks_nxt\\HD-MultiInstanceManager.exe",
             "windowName": "BlueStacks Multi Instance Manager"
@@ -26,16 +27,21 @@
             "ApnaComplex3",
             "ApnaComplex4"
         ],
-        "inputElementNames":{
+        "inputElementNames": {
             "startAllButton": "StartButton0",
             "stopAllButton": "Stop all",
             "closeConfirmDialog": "Close instancesDialog2",
             "closeAllButton": "Close all"
         },
         "sleepDuration": {
+            "instanceLoad": 10,
             "appLoad": 60,
             "pageLoad": 5,
             "smallPause": 1
+        },
+        "defaultAppWindowSize": {
+            "x": 480,
+            "y": 820
         },
         "facilitiesScrollCount": 10,
         "initialSlotHour": 5,

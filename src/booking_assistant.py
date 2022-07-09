@@ -2,24 +2,32 @@ import time
 from datetime import datetime, timedelta
 
 import logging
+from typing import Tuple
 from web_assistant import WebAssistant
 from app_assistant import AppAssistant
 
 
 class BookingAssistant:
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, testRun: bool) -> None:
         self.config = config
         self.logger = logging.getLogger("default")
+        self.testRun = testRun
 
-    def getAllBookingArgs(self) -> dict:
+    def getAllBookingArgs(self) -> Tuple[list, int, datetime]:
         self.logger.info(f"Checking existing bookings.")
+
         webAssistant = WebAssistant(config=self.config)
         # Get existing booking counts for each court
         slotHour, bookingDatetime = webAssistant.getBookingTimeSlot(
             slotHour=self.config["slotHour"],
             nextHourCutoff=self.config["nextHourCutoff"],
         )
-        existingBookings, courtLinks = webAssistant.getExistingBookings(
+
+        # Use dummy data for test run
+        if self.testRun:
+            return self.getDummyBookingArgs()
+
+        existingBookings, _ = webAssistant.getExistingBookings(
             apartmentName=self.config["apartmentName"]
         )
         # Get list of available courts
@@ -29,7 +37,7 @@ class BookingAssistant:
         )
         if courtNumList is None:
             self.logger.error("Too many active bookings found. Can't book any more.")
-            return None, None
+            return list(), slotHour, bookingDatetime
 
         # Create booking arguments for each court booking
         allBookingArgs = [
@@ -53,6 +61,10 @@ class BookingAssistant:
 
     def makeBookings(self) -> None:
         appAssistant = AppAssistant(config=self.config)
+
+        # Minimize all open windows
+        appAssistant.minimizeAllWindows()
+
         # Get booking arguments based on existing bookings
         allBookingArgs, slotHour, bookingDatetime = self.getAllBookingArgs()
         if allBookingArgs is None:
@@ -63,16 +75,22 @@ class BookingAssistant:
             f"Booking {len(allBookingArgs)} slots for {slotHour}:00 hours."
         )
 
+        # allBookingArgs, _, bookingDatetime = self.getDummyBookingArgs()
         allApps = appAssistant.loadAllApnaComplexApps(allBookingArgs=allBookingArgs)
+        if not allApps:
+            return
+
         allApps = appAssistant.navigateAllApps(
             allBookingArgs=allBookingArgs, allApps=allApps
         )
         if not allApps:
             return
-
+        
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
-        successList = appAssistant.confirmAllBookings(allApps=allApps)
-        appAssistant.closeAllApnaComplexApps()
+        successList = appAssistant.confirmAllBookings(allApps=allApps, testRun=self.testRun)
+        
+        if not self.testRun:
+            appAssistant.closeAllApnaComplexApps()
 
         return
 
@@ -80,7 +98,7 @@ class BookingAssistant:
         appAssistant = AppAssistant(config=self.config)
         webAssistant = WebAssistant(config=self.config)
         # Get existing booking counts for each court
-        slotHour, bookingDatetime = webAssistant.getBookingTimeSlot(
+        _, bookingDatetime = webAssistant.getBookingTimeSlot(
             slotHour=self.config["slotHour"],
             nextHourCutoff=self.config["nextHourCutoff"],
         )
@@ -94,5 +112,14 @@ class BookingAssistant:
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
         successList = appAssistant.confirmAllBookings(allApps=allApps)
         appAssistant.closeAllApnaComplexApps()
-        
+
         return
+
+    def getDummyBookingArgs(self) -> Tuple[list, int, datetime]:
+        slotHour = 10
+        bookingArgs = [
+            dict(courtNum=1, slotHour=slotHour),
+            dict(courtNum=1, slotHour=slotHour),
+        ]
+        bookingDatetime = datetime.now() + timedelta(minutes=1)
+        return bookingArgs, slotHour, bookingDatetime

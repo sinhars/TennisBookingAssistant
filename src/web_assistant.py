@@ -1,9 +1,13 @@
 import time
 import datetime
 import logging
+from typing import Dict, List, Optional
+
 
 from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
@@ -15,7 +19,7 @@ class WebAssistant:
         self.config = config["web"]
         self.logger = logging.getLogger("default")
 
-    def getApnaComplexDriver(self) -> object:
+    def getApnaComplexDriver(self) -> WebDriver:
         options = Options()
         options.binary_location = self.config["chromeBinaryPath"]
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
@@ -44,7 +48,9 @@ class WebAssistant:
         )
         return driver
 
-    def isValidCourt(self, allCells: object, courtNum: int) -> tuple:
+    def isValidCourt(
+        self, allCells: list[WebElement], courtNum: Optional[int]
+    ) -> tuple:
         facilityName = allCells[0].text
         isTennisCourt = facilityName.startswith("Tennis Court")
         if not isTennisCourt:
@@ -53,8 +59,10 @@ class WebAssistant:
         isValid = (courtNum is None) or (courtNum == currentCourtNum)
         return isValid, currentCourtNum
 
-    def getCourtLinks(self, driver: object, delay: int, courtNum: int) -> dict:
-        courtLinks = dict(
+    def getCourtLinks(
+        self, driver: WebDriver, delay: int, courtNum: Optional[int]
+    ) -> dict:
+        courtLinks: Dict[str, Dict[str, Optional[str]]] = dict(
             viewing=dict(Court1=None, Court2=None),
             booking=dict(Court1=None, Court2=None),
         )
@@ -67,18 +75,15 @@ class WebAssistant:
         allFacilityRows = facilitiesTable.find_elements(By.XPATH, ".//tbody//tr")
         allFacilityRows.reverse()
         for row in allFacilityRows:
-            allCells = row.find_elements(By.XPATH,".//td")
-            bookingStage = "Searching for valid court"
+            allCells = row.find_elements(By.XPATH, ".//td")
             isValid, currentCourtNum = self.isValidCourt(allCells, courtNum)
             if isValid:
                 allLinks = allCells[-1]
-                allLinks = allLinks.find_elements(By.XPATH,".//a")
-                bookingStage = "Iterating all facility links"
+                allLinks = allLinks.find_elements(By.XPATH, ".//a")
                 for currentLink in allLinks:
                     imageTitle = currentLink.find_elements(By.XPATH, ".//img")[
                         0
                     ].get_attribute("title")
-                    bookingStage = "Identifying links"
                     linkURL = currentLink.get_attribute("href")
                     if imageTitle == linkTitles["viewing"]:
                         courtLinks["viewing"][f"Court{currentCourtNum}"] = linkURL
@@ -88,20 +93,20 @@ class WebAssistant:
         return courtLinks
 
     def getActiveBookings(
-        self, driver: object, delay: int, viewingURL: str, apartmentName: str
+        self, driver: WebDriver, delay: int, viewingURL: str, apartmentName: str
     ) -> int:
         def getBookingCount(bookingCalendar, checkExpired):
             bookingCount = 0
-            eventsContainer = bookingCalendar.find_elements(By.CLASS_NAME,
-                "fc-event-container"
+            eventsContainer = bookingCalendar.find_elements(
+                By.CLASS_NAME, "fc-event-container"
             )
-            allEvents = eventsContainer[-1].find_elements(By.CLASS_NAME,"fc-event")
+            allEvents = eventsContainer[-1].find_elements(By.CLASS_NAME, "fc-event")
             for bookingEvent in allEvents:
-                bookingApartment = bookingEvent.find_element(By.CLASS_NAME,
-                    "fc-event-title"
+                bookingApartment = bookingEvent.find_element(
+                    By.CLASS_NAME, "fc-event-title"
                 ).text
-                bookingSlot = bookingEvent.find_element(By.CLASS_NAME,
-                    "fc-event-time"
+                bookingSlot = bookingEvent.find_element(
+                    By.CLASS_NAME, "fc-event-time"
                 ).text
                 if checkExpired and int(bookingSlot[0]) < datetime.datetime.now().hour:
                     continue
@@ -118,7 +123,7 @@ class WebAssistant:
             buttonClasses = ["fc-button-agendaDay", "fc-button-next"]
             for buttonClass in buttonClasses:
                 checkExpired = buttonClass == "fc-button-agendaDay"
-                dayViewButton = bookingCalendar.find_element(By.CLASS_NAME,buttonClass)
+                dayViewButton = bookingCalendar.find_element(By.CLASS_NAME, buttonClass)
                 dayViewButton.click()
                 time.sleep(1)
                 bookingCount += getBookingCount(
@@ -139,7 +144,7 @@ class WebAssistant:
             driver=driver, delay=self.config["webDriverDelay"], courtNum=None
         )
         viewingLinks = courtLinks["viewing"]
-        existingBookings = dict(Court1=None, Court2=None)
+        existingBookings: Dict[str, Optional[int]] = dict(Court1=None, Court2=None)
         try:
             for court in viewingLinks:
                 existingBookings[court] = self.getActiveBookings(
@@ -169,7 +174,7 @@ class WebAssistant:
         )
         return slotHour, bookingDatetime
 
-    def selectCourtNum(self, existingBookings: dict, numSlots: int) -> list:
+    def selectCourtNum(self, existingBookings: dict, numSlots: int) -> Optional[list]:
         maxBookableSlots = 4
         alreadyUsedSlots = existingBookings["Court1"] + existingBookings["Court2"]
         avaiableSlots = maxBookableSlots - alreadyUsedSlots
@@ -177,10 +182,10 @@ class WebAssistant:
             return None
 
         numSlots = min(numSlots, avaiableSlots)
-        courtNumList = [None] * numSlots
+        courtNumList:List[Optional[int]] = [None] * numSlots
 
         newBookings = existingBookings.copy()
-        courtPreference = ["Court1", "Court2"] 
+        courtPreference = ["Court1", "Court2"]
         for i in range(numSlots):
             if newBookings[courtPreference[0]] < 2:
                 courtNumList[i] = int(courtPreference[0][-1])
