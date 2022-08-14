@@ -85,10 +85,12 @@ class BookingAssistant:
         )
         if not allApps:
             return
-        
+
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
-        successList = appAssistant.confirmAllBookings(allApps=allApps, testRun=self.testRun)
-        
+        successList = appAssistant.confirmAllBookings(
+            allApps=allApps, testRun=self.testRun
+        )
+
         if not self.testRun:
             appAssistant.closeAllApnaComplexApps()
 

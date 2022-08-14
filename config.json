@@ -1,7 +1,7 @@
 {
     "maxSlots": 4,
     "numSlots": 4,
-    "slotHour": 7,
+    "slotHour": null,
     "nextHourCutoff": 10,
     "sleepDuration": {
         "long": 5,
