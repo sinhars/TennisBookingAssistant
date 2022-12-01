@@ -275,6 +275,9 @@ class AppAssistant:
         windowRect: tuple,
         sleepDuration: int = 0,
     ):
+        timings.Timings.slow()
+        timings.Timings.after_click_wait = 1
+        timings.Timings.after_setcursorpos_wait = 1
         dragCounter = 0
         startCoords = self.getCoordinates(
             element=dragStart, windowRect=windowRect, isAbsolute=True

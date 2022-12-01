@@ -36,6 +36,7 @@
         "sleepDuration": {
             "instanceLoad": 10,
             "appLoad": 60,
+            "mediumLoad": 20,
             "pageLoad": 5,
             "smallPause": 1
         },
@@ -72,7 +73,7 @@
             },
             "tomorrowToggle": {
                 "x": 400,
-                "y": 250
+                "y": 255
             },
             "timeSlotDragStart": {
                 "x": 200,
