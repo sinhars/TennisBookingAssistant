@@ -17,6 +17,7 @@ from selenium.common.exceptions import SessionNotCreatedException
 class WebAssistant:
     def __init__(self, config: dict) -> None:
         self.config = config["web"]
+        self.config["maxSlots"] = config["maxSlots"]
         self.logger = logging.getLogger("default")
 
     def getApnaComplexDriver(self) -> WebDriver:
@@ -175,9 +176,8 @@ class WebAssistant:
         return slotHour, bookingDatetime
 
     def selectCourtNum(self, existingBookings: dict, numSlots: int) -> Optional[list]:
-        maxBookableSlots = 4
         alreadyUsedSlots = existingBookings["Court1"] + existingBookings["Court2"]
-        avaiableSlots = maxBookableSlots - alreadyUsedSlots
+        avaiableSlots = self.config["maxSlots"] - alreadyUsedSlots
         if avaiableSlots <= 0:
             return None
 

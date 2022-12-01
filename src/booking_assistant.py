@@ -26,6 +26,10 @@ class BookingAssistant:
         # Use dummy data for test run
         if self.testRun:
             return self.getDummyBookingArgs()
+        elif self.config["numSlots"] > self.config["maxSlots"]:
+            return self.getMaxBookingArgs(
+                slotHour=slotHour, bookingDatetime=bookingDatetime
+            )
 
         existingBookings, _ = webAssistant.getExistingBookings(
             apartmentName=self.config["apartmentName"]
@@ -49,7 +53,7 @@ class BookingAssistant:
         self.logger.info("Sleeping till booking time arrives.")
         timeRemaining = bookingDatetime - datetime.now()
         sleepTime = self.config["sleepDuration"]["long"]
-        while timeRemaining >= timedelta(hours=24):
+        while timeRemaining >= timedelta(hours=24, minutes=00, seconds=1):
             time.sleep(sleepTime)
             timeRemaining = bookingDatetime - datetime.now()
             if timeRemaining < timedelta(
@@ -109,13 +113,25 @@ class BookingAssistant:
             appAssistant.getAppInfoByName(
                 appTitle=f"ApnaComplex{i+1}", bringToFront=True
             )
-            for i in range(self.config["maxSlots"])
+            for i in range(self.config["numSlots"])
         ]
+        
+        print(allApps)
+        
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
         successList = appAssistant.confirmAllBookings(allApps=allApps)
         appAssistant.closeAllApnaComplexApps()
 
         return
+
+    def getMaxBookingArgs(
+        self, slotHour: int, bookingDatetime: datetime
+    ) -> Tuple[list, int, datetime]:
+        bookingArgs = list()
+        for i in range(self.config["numSlots"] // 2):
+            bookingArgs.append(dict(courtNum=1, slotHour=slotHour))
+            bookingArgs.append(dict(courtNum=2, slotHour=slotHour))
+        return bookingArgs, slotHour, bookingDatetime
 
     def getDummyBookingArgs(self) -> Tuple[list, int, datetime]:
         slotHour = 10

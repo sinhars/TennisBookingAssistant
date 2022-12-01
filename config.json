@@ -5,7 +5,7 @@
     "nextHourCutoff": 10,
     "sleepDuration": {
         "long": 5,
-        "short": 0.001
+        "short": 0.1
     },
     "apartmentName": "Bougainvillea-E-501",
     "web": {
@@ -43,7 +43,7 @@
             "x": 480,
             "y": 820
         },
-        "facilitiesScrollCount": 10,
+        "facilitiesScrollCount": 12,
         "initialSlotHour": 5,
         "mousePosition": {
             "apnaComplexIcon": {
