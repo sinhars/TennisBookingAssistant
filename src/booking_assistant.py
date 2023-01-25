@@ -47,6 +47,7 @@ class BookingAssistant:
         allBookingArgs = [
             dict(courtNum=courtNum, slotHour=slotHour) for courtNum in courtNumList
         ]
+        allBookingArgs = [allBookingArgs[i ^ 1] for i in range(len(allBookingArgs))]
         return allBookingArgs, slotHour, bookingDatetime
 
     def sleepTillOpeningTime(self, bookingDatetime: datetime):
@@ -111,13 +112,13 @@ class BookingAssistant:
         # Fallback for confirming on manually opened windows
         allApps = [
             appAssistant.getAppInfoByName(
-                appTitle=f"ApnaComplex{i+1}", bringToFront=True
+                appTitle=f"ApnaComplex{i+1}", bringToFront=False
             )
             for i in range(self.config["numSlots"])
         ]
-        
+
         print(allApps)
-        
+
         self.sleepTillOpeningTime(bookingDatetime=bookingDatetime)
         successList = appAssistant.confirmAllBookings(allApps=allApps)
         appAssistant.closeAllApnaComplexApps()
