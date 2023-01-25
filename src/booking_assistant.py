@@ -1,4 +1,5 @@
 import time
+import random
 from datetime import datetime, timedelta
 
 import logging
@@ -47,8 +48,14 @@ class BookingAssistant:
         allBookingArgs = [
             dict(courtNum=courtNum, slotHour=slotHour) for courtNum in courtNumList
         ]
-        allBookingArgs = [allBookingArgs[i ^ 1] for i in range(len(allBookingArgs))]
-        return allBookingArgs, slotHour, bookingDatetime
+        evenArgs = [
+            allBookingArgs[i] for i in range(len(allBookingArgs)) if (i % 2 == 0)
+        ]
+        oddArgs = [
+            allBookingArgs[i] for i in range(len(allBookingArgs)) if (i % 2 == 1)
+        ]
+        reorderedArgs = evenArgs + oddArgs
+        return reorderedArgs, slotHour, bookingDatetime
 
     def sleepTillOpeningTime(self, bookingDatetime: datetime):
         self.logger.info("Sleeping till booking time arrives.")
